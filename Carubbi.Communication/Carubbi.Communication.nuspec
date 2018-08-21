@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Raphael Carubbi Neto</authors>
+    <owners>Raphael Carubbi Neto</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Implementation of named pipes stream to abstract the complexity. Allow you to use interprocess communication in a simple way.</description>
+    <releaseNotes></releaseNotes>
+    <copyright>Copyright Carubbi Consultoria e Tecnologia 2015</copyright>
+    <tags>Named pipe, IPC, Inter-process communication, stream</tags>
+  </metadata>
+</package>
+ 
