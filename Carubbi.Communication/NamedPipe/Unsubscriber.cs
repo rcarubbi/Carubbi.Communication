@@ -3,22 +3,22 @@ using System.Collections.Generic;
 
 namespace Carubbi.Communication.NamedPipe
 {
-    public  class Unsubscriber<TDtoOutput> : IDisposable
-        where TDtoOutput : class
+    public  class Unsubscriber<TResponseMessage> : IDisposable
+        where TResponseMessage : class
     {
-        private readonly List<IObserver<TDtoOutput>> _observers;
-        private readonly IObserver<TDtoOutput> _observer;
+        private readonly List<IObserver<TResponseMessage>> _subscribers;
+        private readonly IObserver<TResponseMessage> _subscriber;
 
-        internal Unsubscriber(List<IObserver<TDtoOutput>> observers, IObserver<TDtoOutput> observer)
+        internal Unsubscriber(List<IObserver<TResponseMessage>> subscribers, IObserver<TResponseMessage> subscriber)
         {
-            _observers = observers;
-            _observer = observer;
+            _subscribers = subscribers;
+            _subscriber = subscriber;
         }
 
         public void Dispose()
         {
-            if (_observers.Contains(_observer))
-                _observers.Remove(_observer);
+            if (_subscribers.Contains(_subscriber))
+                _subscribers.Remove(_subscriber);
         }
     }
 }

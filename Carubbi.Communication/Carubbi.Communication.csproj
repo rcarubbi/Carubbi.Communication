@@ -49,10 +49,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NamedPipe\NamedPipeClient.cs" />
-    <Compile Include="NamedPipe\ServerBase.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="NamedPipe\Client.cs" />
+    <Compile Include="NamedPipe\Server.cs" />
     <Compile Include="NamedPipe\Unsubscriber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
