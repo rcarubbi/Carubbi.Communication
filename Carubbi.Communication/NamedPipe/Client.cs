@@ -11,31 +11,42 @@ namespace Carubbi.Communication.NamedPipe
         where TRequestMessage : class
         where TResponseMessage : class
     {
+        private readonly string _serverPipeName;
+        private readonly string _callbackPipeName;
+        private readonly string _serverPipePath;
+
         private readonly List<IObserver<TResponseMessage>> _subscribers;
 
-        private readonly NamedPipeClientStream _serverPipe;
-        private readonly NamedPipeServerStream _callbackPipe;
+        private NamedPipeClientStream _serverPipe;
+        private NamedPipeServerStream _callbackPipe;
 
-        private readonly StreamWriter _streamWriter;
-        private readonly StreamReader _streamReader;
-
+        private StreamWriter _streamWriter;
+        private StreamReader _streamReader;
         private BackgroundWorker _callbackBackgroundWorker;
         private int _messageCounter;
-        
-        protected Client(string processName, string serverPipePath = ".", string serverPipeName = null, string callbackPipeName = null, Action beforeStart = null)
-        {
-            var defaultServerPipeName = $"{processName}_SERVER_PIPE";
-            var defaultCallbackPipeName = $"{Guid.NewGuid()}_CALLBACK_PIPE";
 
-            _serverPipe = new NamedPipeClientStream(serverPipePath, serverPipeName ?? defaultServerPipeName, PipeDirection.Out);
+        public EventHandler BeforeConnect;
+        public EventHandler AfterEnd;
+
+        protected Client(string processName, string serverPipeName = null, string callbackPipeName = null, string serverPipePath = ".")
+        {
+            _serverPipeName = serverPipeName ?? $"{processName}_SERVER_PIPE"; 
+            _callbackPipeName = callbackPipeName ?? $"{Guid.NewGuid()}_CALLBACK_PIPE"; 
+            _serverPipePath = serverPipePath;
+
+    
+            _subscribers = new List<IObserver<TResponseMessage>>();
+        }
+
+        public void Connect()
+        {
+            BeforeConnect?.Invoke(this, EventArgs.Empty);
+
+            _serverPipe = new NamedPipeClientStream(_serverPipePath, _serverPipeName, PipeDirection.Out);
             _streamWriter = new StreamWriter(_serverPipe);
 
-            _callbackPipe = new NamedPipeServerStream(callbackPipeName ?? defaultCallbackPipeName, PipeDirection.In, 1);
+            _callbackPipe = new NamedPipeServerStream(_callbackPipeName, PipeDirection.In, 1);
             _streamReader = new StreamReader(_callbackPipe);
-
-            _subscribers = new List<IObserver<TResponseMessage>>();
-
-            beforeStart?.Invoke();
 
             StartCallbackListener();
         }
@@ -86,10 +97,8 @@ namespace Carubbi.Communication.NamedPipe
             _callbackPipe.Close();
             _callbackPipe.Dispose();
 
-            AfterEnd();
+            AfterEnd?.Invoke(this, EventArgs.Empty);
         }
-
-        protected abstract void AfterEnd();
 
         private void StartCallbackListener()
         {
