@@ -22,7 +22,7 @@ namespace Carubbi.Communication.NamedPipe
         private BackgroundWorker _callbackBackgroundWorker;
         private int _messageCounter;
         
-        protected Client(string processName, string serverPipePath = ".", string serverPipeName = null, string callbackPipeName = null)
+        protected Client(string processName, string serverPipePath = ".", string serverPipeName = null, string callbackPipeName = null, Action beforeStart = null)
         {
             var defaultServerPipeName = $"{processName}_SERVER_PIPE";
             var defaultCallbackPipeName = $"{Guid.NewGuid()}_CALLBACK_PIPE";
@@ -35,8 +35,8 @@ namespace Carubbi.Communication.NamedPipe
 
             _subscribers = new List<IObserver<TResponseMessage>>();
 
-            BeforeStart();
-   
+            beforeStart?.Invoke();
+
             StartCallbackListener();
         }
 
