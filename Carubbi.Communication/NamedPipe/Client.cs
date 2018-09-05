@@ -7,7 +7,7 @@ using System.IO.Pipes;
 
 namespace Carubbi.Communication.NamedPipe
 {
-    public abstract class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMessage>, IDisposable
+    public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMessage>, IDisposable
         where TRequestMessage : class
         where TResponseMessage : class
     {

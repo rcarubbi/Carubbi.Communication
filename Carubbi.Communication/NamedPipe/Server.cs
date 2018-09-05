@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
+using System.Reflection;
 using System.Threading;
 
 namespace Carubbi.Communication.NamedPipe
@@ -47,11 +48,14 @@ namespace Carubbi.Communication.NamedPipe
             _streamWriter = new StreamWriter(_callbackPipe);
         }
 
-        protected abstract TResponseMessage RunService(TRequestMessage requestMessage);
+        protected abstract TResponseMessage ProcessRequest(TRequestMessage requestMessage);
 
         protected abstract void BeforeStart();
 
-        protected abstract void KeepAlive();
+        protected virtual void KeepAlive()
+        {
+
+        }
 
         protected virtual void StartListening()
         {
@@ -90,7 +94,7 @@ namespace Carubbi.Communication.NamedPipe
                     {
                         Thread.Sleep(200);
                     }
-                    var responseMessage = RunService(requestMessage);
+                    var responseMessage = ProcessRequest(requestMessage);
                     _lastRequestDateTime = DateTime.Now;
                     CallBack(responseMessage);
                 }
@@ -120,9 +124,24 @@ namespace Carubbi.Communication.NamedPipe
          
         private void InitKeepAlive()
         {
-            _keepAliveBackgroundWorker.DoWork += _keepAliveBackgroundWorker_DoWork; ;
+            if (!MethodOverridden(nameof(KeepAlive))) return;
+
+            _keepAliveBackgroundWorker.DoWork += _keepAliveBackgroundWorker_DoWork;
             _keepAliveBackgroundWorker.RunWorkerAsync();
         }
+
+
+        private bool MethodOverridden(string methodName)
+        {
+            var t = GetType();
+            var mi = t.GetMethod(methodName, BindingFlags.Instance);
+            if (mi == null) return false;
+
+            var declaringType = mi.DeclaringType?.FullName;
+
+            return declaringType != null && declaringType.Equals(t.FullName, StringComparison.OrdinalIgnoreCase);
+        }
+
 
         private void _keepAliveBackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
