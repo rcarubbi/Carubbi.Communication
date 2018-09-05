@@ -89,8 +89,6 @@ namespace Carubbi.Communication.NamedPipe
             AfterEnd();
         }
 
-        protected abstract void BeforeStart();
-
         protected abstract void AfterEnd();
 
         private void StartCallbackListener()
