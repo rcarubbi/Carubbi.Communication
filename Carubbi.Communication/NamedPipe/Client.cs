@@ -28,7 +28,7 @@ namespace Carubbi.Communication.NamedPipe
         public EventHandler BeforeConnect;
         public EventHandler AfterEnd;
 
-        protected Client(string processName, string serverPipeName = null, string callbackPipeName = null, string serverPipePath = ".")
+        public Client(string processName, string serverPipeName = null, string callbackPipeName = null, string serverPipePath = ".")
         {
             _serverPipeName = serverPipeName ?? $"{processName}_SERVER_PIPE"; 
             _callbackPipeName = callbackPipeName ?? $"{Guid.NewGuid()}_CALLBACK_PIPE"; 
