@@ -7,10 +7,9 @@ using System.IO.Pipes;
 
 namespace Carubbi.Communication.NamedPipe
 {
-    public abstract class Client<TRequestMessage, TResponseMessage, TCredentialsMessage> : IObservable<TResponseMessage>, IDisposable
+    public abstract class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMessage>, IDisposable
         where TRequestMessage : class
         where TResponseMessage : class
-        where TCredentialsMessage : class
     {
         private readonly List<IObserver<TResponseMessage>> _subscribers;
 
@@ -19,8 +18,6 @@ namespace Carubbi.Communication.NamedPipe
 
         private readonly StreamWriter _streamWriter;
         private readonly StreamReader _streamReader;
-
-        private readonly string _processName;
 
         private BackgroundWorker _callbackBackgroundWorker;
         private int _messageCounter;
@@ -37,7 +34,6 @@ namespace Carubbi.Communication.NamedPipe
             _streamReader = new StreamReader(_callbackPipe);
 
             _subscribers = new List<IObserver<TResponseMessage>>();
-            _processName = processName;
 
             BeforeStart();
    
