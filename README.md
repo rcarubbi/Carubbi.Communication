@@ -56,7 +56,7 @@ public class EchoServiceCallback : IObserver<string>
 ```
 
 > Client App:
-```charp
+```csharp
 using (var client = new Client<string, string>("EchoService"))
 {
     client.BeforeConnect += (sender, eventArgs) => Console.WriteLine("Connecting...");
