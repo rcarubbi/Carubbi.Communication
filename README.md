@@ -26,7 +26,7 @@ public class EchoService : Server<string, string>
 }
 ```
 
-> Server Console App:
+> Server App:
 ```csharp
 var service = new EchoService();
 service.Start();
