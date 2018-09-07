@@ -31,7 +31,7 @@ namespace Carubbi.Communication.NamedPipe
         public Client(string processName, string serverPipeName = null, string callbackPipeName = null, string serverPipePath = ".")
         {
             _serverPipeName = serverPipeName ?? $"{processName}_SERVER_PIPE"; 
-            _callbackPipeName = callbackPipeName ?? $"{Guid.NewGuid()}_CALLBACK_PIPE"; 
+            _callbackPipeName = callbackPipeName ?? $"{processName}_CALLBACK_PIPE"; 
             _serverPipePath = serverPipePath;
 
     
@@ -57,9 +57,7 @@ namespace Carubbi.Communication.NamedPipe
             {
                 _subscribers.Add(subscriber);
             }
-
-            _subscribers.Add(subscriber);
-
+ 
             return new Unsubscriber<TResponseMessage>(_subscribers, subscriber);
         }
 

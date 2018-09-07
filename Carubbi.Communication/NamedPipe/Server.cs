@@ -14,6 +14,9 @@ namespace Carubbi.Communication.NamedPipe
     {
         public int IdleSeconds { get; set; }
 
+        private readonly string _serverPipeName;
+        private readonly string _callbackPipeName;
+
         private readonly BackgroundWorker _listeningPipeBackgroundWorker;
         private readonly BackgroundWorker _keepAliveBackgroundWorker;
 
@@ -36,15 +39,18 @@ namespace Carubbi.Communication.NamedPipe
             StartListening();
         }
 
-        protected Server(string serverPipeName, string callbackPipeName, string callbackClientPath = ".")
+        protected Server(string processName, string serverPipeName = null, string callbackPipeName = null, string callbackClientPath = ".")
         {
+            _serverPipeName = serverPipeName ?? $"{processName}_SERVER_PIPE";
+            _callbackPipeName = callbackPipeName ?? $"{processName}_CALLBACK_PIPE";
+
             _listeningPipeBackgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true, WorkerReportsProgress = true };
             _keepAliveBackgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true, WorkerReportsProgress = true };
 
-            _serverPipe = new NamedPipeServerStream(serverPipeName, PipeDirection.In, 1);
+            _serverPipe = new NamedPipeServerStream(_serverPipeName, PipeDirection.In, 1);
             _streamReader = new StreamReader(_serverPipe);
 
-            _callbackPipe = new NamedPipeClientStream(callbackClientPath, callbackPipeName, PipeDirection.Out);
+            _callbackPipe = new NamedPipeClientStream(callbackClientPath, _callbackPipeName, PipeDirection.Out);
             _streamWriter = new StreamWriter(_callbackPipe);
         }
 
