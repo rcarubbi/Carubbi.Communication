@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using static System.Console;
 
 namespace Carubbi.Communication.ClientSample
 {
@@ -10,23 +9,23 @@ namespace Carubbi.Communication.ClientSample
     {
         private static volatile bool _callbackCalled; 
 
-        class Callback : IObserver<string>
+        public class EchoServiceCallback : IObserver<string>
         {
             public void OnNext(string value)
             {
-                WriteLine(value);
+                Console.WriteLine(value);
                 _callbackCalled = true;
             }
 
             public void OnError(Exception error)
             {
-                WriteLine(error.Message);
+                Console.WriteLine(error.Message);
                 _callbackCalled = true;
             }
 
             public void OnCompleted()
             {
-                WriteLine("Request Completed");
+                Console.WriteLine("Request Completed");
                 _callbackCalled = true;
             }
         }
@@ -37,32 +36,32 @@ namespace Carubbi.Communication.ClientSample
             {
                 using (var client = new Client<string, string>("EchoService"))
                 {
-                    client.BeforeConnect += (sender, eventArgs) => WriteLine("Connecting...");
-                    client.AfterEnd += (sender, eventArgs) => WriteLine("Disconected.");
-                    client.Subscribe(new Callback());
+                    client.BeforeConnect += (sender, eventArgs) => Console.WriteLine("Connecting...");
+                    client.AfterEnd += (sender, eventArgs) => Console.WriteLine("Disconected.");
+                    client.Subscribe(new EchoServiceCallback());
                     client.Connect();
 
                     do
                     {
-                        WriteLine("Type your message:");
-                        var message = ReadLine();
+                        Console.WriteLine("Type your message:");
+                        var message = Console.ReadLine();
 
                         client.SendRequest(new List<string> { message });
-                        WriteLine("Waiting callback...");
+                        Console.WriteLine("Waiting callback...");
                         while (!_callbackCalled)
                         {
                             Thread.Sleep(100);
                         }
 
                         _callbackCalled = false;
-                        WriteLine("Press any key to continue or esc to exit");
-                    } while (ReadKey().Key != ConsoleKey.Escape);
+                        Console.WriteLine("Press any key to continue or esc to exit");
+                    } while (Console.ReadKey().Key != ConsoleKey.Escape);
                 }
             }
             catch (Exception e)
             {
-                WriteLine(e);
-                ReadKey();
+                Console.WriteLine(e);
+                Console.ReadKey();
             }
         }
     }
