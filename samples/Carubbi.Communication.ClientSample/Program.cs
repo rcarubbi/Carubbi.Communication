@@ -7,11 +7,13 @@ namespace Carubbi.Communication.ClientSample;
 
 internal static class Program
 {
-    private static void Main()
+    private static void Main(string[] args)
     {
+        var serverPipePath = args.Length > 0 ? args[0] : ".";
+
         try
         {
-            using (var client = new Client<string, string>("EchoService"))
+            using (var client = new Client<string, string>("EchoService", serverPipePath: serverPipePath))
             {
                 var callbackFired = new ManualResetEventSlim(false);
 

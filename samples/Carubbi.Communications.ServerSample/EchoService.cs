@@ -5,8 +5,8 @@ namespace Carubbi.Communications.ServerSample
 {
     public class EchoService : Server<string, string>
     {
-        public EchoService()
-        : base(nameof(EchoService))
+        public EchoService(string callbackClientPath = ".")
+        : base(nameof(EchoService), callbackClientPath: callbackClientPath)
         {
             
         }

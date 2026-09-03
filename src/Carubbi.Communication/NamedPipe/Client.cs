@@ -2,7 +2,8 @@
 using System.IO;
 using System.IO.Pipes;
 using System.Runtime.Versioning;
-using Carubbi.Utils.Persistence;
+using System.Security.AccessControl;
+using Carubbi.Communication.Serialization;
 
 namespace Carubbi.Communication.NamedPipe;
 
@@ -11,28 +12,57 @@ public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMe
     where TRequestMessage : class
     where TResponseMessage : class
 {
+    private readonly IMessageSerializer<List<TRequestMessage>> _requestSerializer;
+    private readonly IMessageSerializer<TResponseMessage> _responseSerializer;
+
     private readonly string _serverPipeName;
     private readonly string _callbackPipeName;
     private readonly string _serverPipePath;
+    private readonly PipeSecurity _callbackPipeSecurity;
 
     private readonly List<IObserver<TResponseMessage>> _subscribers;
 
     private NamedPipeClientStream? _serverPipe;
     private NamedPipeServerStream? _callbackPipe;
-
-    private StreamWriter? _streamWriter;
-    private StreamReader? _streamReader;
     private BackgroundWorker? _callbackBackgroundWorker;
     private int _messageCounter;
 
     public event EventHandler? BeforeConnect;
     public event EventHandler? AfterEnd;
 
-    public Client(string processName, string? serverPipeName = null, string? callbackPipeName = null, string serverPipePath = ".")
+    public Client(
+        string processName,
+        string? serverPipeName = null,
+        string? callbackPipeName = null,
+        string serverPipePath = ".",
+        MessageFormat format = MessageFormat.Xml,
+        PipeSecurity? callbackPipeSecurity = null)
+        : this(
+            processName,
+            MessageSerializerFactory.Create<List<TRequestMessage>>(format),
+            MessageSerializerFactory.Create<TResponseMessage>(format),
+            serverPipeName,
+            callbackPipeName,
+            serverPipePath,
+            callbackPipeSecurity)
     {
+    }
+
+    public Client(
+        string processName,
+        IMessageSerializer<List<TRequestMessage>> requestSerializer,
+        IMessageSerializer<TResponseMessage> responseSerializer,
+        string? serverPipeName = null,
+        string? callbackPipeName = null,
+        string serverPipePath = ".",
+        PipeSecurity? callbackPipeSecurity = null)
+    {
+        _requestSerializer = requestSerializer;
+        _responseSerializer = responseSerializer;
         _serverPipeName = serverPipeName ?? $"{processName}_SERVER_PIPE";
         _callbackPipeName = callbackPipeName ?? $"{processName}_CALLBACK_PIPE";
         _serverPipePath = serverPipePath;
+        _callbackPipeSecurity = callbackPipeSecurity ?? NamedPipeSecurity.AllowEveryone();
 
         _subscribers = [];
     }
@@ -42,10 +72,18 @@ public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMe
         BeforeConnect?.Invoke(this, EventArgs.Empty);
 
         _serverPipe = new NamedPipeClientStream(_serverPipePath, _serverPipeName, PipeDirection.Out);
-        _streamWriter = new StreamWriter(_serverPipe);
 
-        _callbackPipe = new NamedPipeServerStream(_callbackPipeName, PipeDirection.In, 1);
-        _streamReader = new StreamReader(_callbackPipe);
+        _callbackPipe = NamedPipeServerStreamAcl.Create(
+            _callbackPipeName,
+            PipeDirection.In,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.None,
+            0,
+            0,
+            _callbackPipeSecurity,
+            HandleInheritability.None,
+            PipeAccessRights.ReadWrite);
 
         StartCallbackListener();
     }
@@ -62,7 +100,7 @@ public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMe
 
     public void SendRequest(List<TRequestMessage> requestMessages)
     {
-        if (_serverPipe is null || _streamWriter is null)
+        if (_serverPipe is null)
         {
             throw new InvalidOperationException("The client must be connected before sending a request.");
         }
@@ -70,17 +108,12 @@ public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMe
         if (!_serverPipe.IsConnected)
         {
             _serverPipe.Connect();
-            _streamWriter.AutoFlush = true;
         }
 
         _messageCounter = requestMessages.Count;
 
-        var requestSerializer = new Serializer<List<TRequestMessage>>();
-
-        var serializedRequestMessages = requestSerializer.XmlSerialize(requestMessages);
-        serializedRequestMessages = serializedRequestMessages.Replace(Environment.NewLine, string.Empty);
-
-        _streamWriter.WriteLine(serializedRequestMessages);
+        var payload = _requestSerializer.Serialize(requestMessages);
+        PipeFraming.WriteFrame(_serverPipe, payload);
 
         _serverPipe.WaitForPipeDrain();
     }
@@ -135,14 +168,17 @@ public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMe
 
     private void _callbackBackgroundWorker_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
     {
-        _callbackBackgroundWorker?.RunWorkerAsync();
+        if (_callbackBackgroundWorker is not null && !_callbackBackgroundWorker.CancellationPending)
+        {
+            _callbackBackgroundWorker.RunWorkerAsync();
+        }
     }
 
     private void _callbackBackgroundWorker_DoWork(object? sender, DoWorkEventArgs e)
     {
         while (_callbackBackgroundWorker is not null && !_callbackBackgroundWorker.CancellationPending)
         {
-            if (_callbackPipe is null || _streamReader is null)
+            if (_callbackPipe is null)
             {
                 break;
             }
@@ -152,17 +188,17 @@ public class Client<TRequestMessage, TResponseMessage> : IObservable<TResponseMe
                 _callbackPipe.WaitForConnection();
             }
 
-            var serializedResponseMessage = _streamReader.ReadLine();
-
-            if (serializedResponseMessage == null)
+            byte[] payload;
+            try
             {
-                _callbackPipe.Disconnect();
-                _callbackBackgroundWorker.CancelAsync();
-                continue;
+                payload = PipeFraming.ReadFrame(_callbackPipe);
+            }
+            catch (IOException)
+            {
+                break;
             }
 
-            var responseSerializer = new Serializer<TResponseMessage>();
-            var responseMessage = responseSerializer.XmlDeserialize(serializedResponseMessage);
+            var responseMessage = _responseSerializer.Deserialize(payload);
 
             NotifyResponseMessage(responseMessage);
 

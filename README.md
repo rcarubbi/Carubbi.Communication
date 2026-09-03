@@ -11,7 +11,11 @@ Implementation of named pipes stream to abstract the complexity. Allows you to u
 |---------|---------|
 | `Carubbi.Communication` | `Carubbi.Communication` |
 
-Target framework: `net10.0` (Windows). Requires .NET 10 SDK.
+Target framework: `net10.0-windows` (Windows only). Requires .NET 10 SDK.
+
+> **Wire version compatibility**: each library version uses its own wire protocol.
+> Client and Server MUST run the same version (v2.1.0). Do not mix a v2.1.0 peer
+> with a v2.0.0 peer — the transport and framing changed.
 
 ## Usage
 
@@ -79,7 +83,48 @@ using (var client = new Client<string, string>("EchoService"))
 }
 ```
 
-The pipe names default to `{processName}_SERVER_PIPE` (server to client) and `{processName}_CALLBACK_PIPE` (client to server). Both the server and the client must use the same `processName`, or pass explicit `serverPipeName`/`callbackPipeName` values.
+The pipe names default to `{processName}_SERVER_PIPE` (client → server) and `{processName}_CALLBACK_PIPE` (server → client). Both the server and the client must use the same `processName`, or pass explicit `serverPipeName`/`callbackPipeName` values.
+
+## Serialization formats
+
+Messages are serialized with a pluggable strategy. Choose it on both the server and the client constructors via the `MessageFormat` argument (default `MessageFormat.Xml`):
+
+| Format | Notes |
+|--------|-------|
+| `MessageFormat.Xml` | Default. Uses `System.Xml.Serialization.XmlSerializer` (BCL). Any public POCO. |
+| `MessageFormat.Json` | Uses `System.Text.Json` (BCL). Any public POCO. |
+| `MessageFormat.Binary` | Custom reflection-based encoder (`BinaryWriter`/`BinaryReader`) over public read/write properties. Supports primitives, `string`, `char`, `DateTime`, `TimeSpan`, `Guid`, `decimal`, `enum`, `byte[]`, arrays and `List<T>`. |
+| `MessageFormat.Protobuf` | Uses `protobuf-net`. Message types must be annotated with `[ProtoContract]` / `[ProtoMember]`. |
+
+```csharp
+// Both peers must use the same format.
+var server = new EchoService(format: MessageFormat.Protobuf);
+var client = new Client<string, string>("EchoService", format: MessageFormat.Protobuf);
+```
+
+For full control, pass your own serializers implementing `IMessageSerializer<T>`:
+
+```csharp
+var client = new Client<string, string>(
+    customRequestSerializer,   // IMessageSerializer<List<string>>
+    customResponseSerializer); // IMessageSerializer<string>
+```
+
+## Network / cross-machine (".")
+
+By default both peers connect on the local machine (`"."`). To communicate across the network, pass the remote peer's host on both sides:
+
+- **Client** → `serverPipePath` = the machine hosting the `Server`.
+- **Server** → `callbackClientPath` = the machine hosting the `Client`.
+
+```csharp
+var client = new Client<string, string>("EchoService", serverPipePath: "192.168.1.50");
+var server = new EchoService(callbackClientPath: "192.168.1.60");
+```
+
+Hosted pipes default to `AllowEveryone()` (`PipeSecurity` granting the `Everyone` SID read/write), which is required for remote peers that run under a different account. Use `NamedPipeSecurity.AllowEveryone()` (default), `NamedPipeSecurity.AllowCurrentUser()`, or build a custom `PipeSecurity` and pass it as `serverPipeSecurity` / `callbackPipeSecurity`.
+
+For security reasons `.NET 10` removed the `PipeSecurity` overloads from the `NamedPipeServerStream` constructor; this library uses `NamedPipeServerStreamAcl` (part of the `net10.0-windows` framework, no extra package) to apply pipe security.
 
 ## Samples
 

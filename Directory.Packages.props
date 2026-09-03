@@ -4,7 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageVersion Include="Carubbi.Utils" Version="2.0.0" />
+    <PackageVersion Include="protobuf-net" Version="3.4.21" />
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.14.0.120626" />
     <PackageVersion Include="TUnit" Version="1.65.68" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />

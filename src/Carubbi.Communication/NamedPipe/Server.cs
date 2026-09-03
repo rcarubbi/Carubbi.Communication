@@ -3,42 +3,82 @@ using System.IO;
 using System.IO.Pipes;
 using System.Reflection;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Threading;
-using Carubbi.Utils.Persistence;
+using Carubbi.Communication.Serialization;
 
 namespace Carubbi.Communication.NamedPipe;
 
 [SupportedOSPlatform("windows")]
 public abstract class Server<TRequestMessage, TResponseMessage>
     where TRequestMessage : class
+    where TResponseMessage : class
 {
     private readonly BackgroundWorker _listeningPipeBackgroundWorker;
     private readonly BackgroundWorker _keepAliveBackgroundWorker;
 
+    private readonly IMessageSerializer<List<TRequestMessage>> _requestSerializer;
+    private readonly IMessageSerializer<TResponseMessage> _responseSerializer;
+
     private readonly NamedPipeServerStream _serverPipe;
     private readonly NamedPipeClientStream _callbackPipe;
-
-    private readonly StreamReader _streamReader;
-    private readonly StreamWriter _streamWriter;
 
     private DateTime _lastRequestDateTime;
     private bool _isKeepAliveRunning;
 
     public int IdleSeconds { get; set; }
 
-    protected Server(string processName, string? serverPipeName = null, string? callbackPipeName = null, string callbackClientPath = ".")
+    protected Server(
+        string processName,
+        string? serverPipeName = null,
+        string? callbackPipeName = null,
+        string callbackClientPath = ".",
+        MessageFormat format = MessageFormat.Xml,
+        PipeSecurity? serverPipeSecurity = null)
+        : this(
+            processName,
+            MessageSerializerFactory.Create<List<TRequestMessage>>(format),
+            MessageSerializerFactory.Create<TResponseMessage>(format),
+            serverPipeName,
+            callbackPipeName,
+            callbackClientPath,
+            serverPipeSecurity)
+    {
+    }
+
+    protected Server(
+        string processName,
+        IMessageSerializer<List<TRequestMessage>> requestSerializer,
+        IMessageSerializer<TResponseMessage> responseSerializer,
+        string? serverPipeName = null,
+        string? callbackPipeName = null,
+        string callbackClientPath = ".",
+        PipeSecurity? serverPipeSecurity = null)
     {
         var serverPipeNameValue = serverPipeName ?? $"{processName}_SERVER_PIPE";
         var callbackPipeNameValue = callbackPipeName ?? $"{processName}_CALLBACK_PIPE";
 
+        _requestSerializer = requestSerializer;
+        _responseSerializer = responseSerializer;
+
+        var security = serverPipeSecurity ?? NamedPipeSecurity.AllowEveryone();
+
         _listeningPipeBackgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true, WorkerReportsProgress = true };
         _keepAliveBackgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true, WorkerReportsProgress = true };
 
-        _serverPipe = new NamedPipeServerStream(serverPipeNameValue, PipeDirection.In, 1);
-        _streamReader = new StreamReader(_serverPipe);
+        _serverPipe = NamedPipeServerStreamAcl.Create(
+            serverPipeNameValue,
+            PipeDirection.In,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.None,
+            0,
+            0,
+            security,
+            HandleInheritability.None,
+            PipeAccessRights.ReadWrite);
 
         _callbackPipe = new NamedPipeClientStream(callbackClientPath, callbackPipeNameValue, PipeDirection.Out);
-        _streamWriter = new StreamWriter(_callbackPipe);
     }
 
     public void Start()
@@ -80,17 +120,17 @@ public abstract class Server<TRequestMessage, TResponseMessage>
                 _serverPipe.WaitForConnection();
             }
 
-            var serializedRequestMessages = _streamReader.ReadLine();
-
-            if (serializedRequestMessages == null)
+            byte[] payload;
+            try
             {
-                _serverPipe.Disconnect();
-                _listeningPipeBackgroundWorker.CancelAsync();
-                continue;
+                payload = PipeFraming.ReadFrame(_serverPipe);
+            }
+            catch (IOException)
+            {
+                break;
             }
 
-            var requestSerializer = new Serializer<List<TRequestMessage>>();
-            var requestMessages = requestSerializer.XmlDeserialize(serializedRequestMessages);
+            var requestMessages = _requestSerializer.Deserialize(payload);
 
             foreach (var requestMessage in requestMessages)
             {
@@ -113,17 +153,13 @@ public abstract class Server<TRequestMessage, TResponseMessage>
 
     private void CallBack(TResponseMessage responseMessage)
     {
-        var responseSerializer = new Serializer<TResponseMessage>();
-        var serializedResponseMessage = responseSerializer.XmlSerialize(responseMessage)
-            .Replace(Environment.NewLine, string.Empty);
-
         if (!_callbackPipe.IsConnected)
         {
             _callbackPipe.Connect();
-            _streamWriter.AutoFlush = true;
         }
 
-        _streamWriter.WriteLine(serializedResponseMessage);
+        var payload = _responseSerializer.Serialize(responseMessage);
+        PipeFraming.WriteFrame(_callbackPipe, payload);
         _callbackPipe.WaitForPipeDrain();
     }
 

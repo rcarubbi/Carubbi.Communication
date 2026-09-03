@@ -9,7 +9,7 @@
     <Authors>Raphael Carubbi Neto</Authors>
     <Company>Carubbi</Company>
     <Product>Carubbi.Communication</Product>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/rcarubbi/Carubbi.Communication</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

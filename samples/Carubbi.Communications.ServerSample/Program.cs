@@ -5,9 +5,11 @@ namespace Carubbi.Communications.ServerSample;
 
 internal static class Program
 {
-    private static void Main()
+    private static void Main(string[] args)
     {
-        var service = new EchoService();
+        var callbackClientPath = args.Length > 0 ? args[0] : ".";
+
+        var service = new EchoService(callbackClientPath);
         service.Start();
 
         while (!Console.KeyAvailable)
