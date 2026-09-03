@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Carubbi.Communication</RootNamespace>
+    <PackageId>Carubbi.Communication</PackageId>
+    <Title>Carubbi.Communication</Title>
+    <Description>Implementation of named pipes stream to abstract the complexity. Allows you to use inter-process communication in a simple way.</Description>
+    <PackageTags>Named pipe; IPC; Inter-process communication; stream</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Carubbi.Communication.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Carubbi.Utils" />
+  </ItemGroup>
+
+</Project>

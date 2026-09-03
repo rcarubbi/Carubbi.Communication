@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/Carubbi.Communication/Carubbi.Communication.csproj" />
+  <Project Path="tests/Carubbi.Communication.Tests/Carubbi.Communication.Tests.csproj" />
+  <Folder Name="/samples/">
+    <Project Path="samples/Carubbi.Communication.ClientSample/Carubbi.Communication.ClientSample.csproj" />
+    <Project Path="samples/Carubbi.Communications.ServerSample/Carubbi.Communications.ServerSample.csproj" />
+  </Folder>
+</Solution>
